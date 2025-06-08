@@ -1,10 +1,9 @@
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-)
 from rest_framework.authentication import BaseAuthentication
 
 class CustomAuthentication(BaseAuthentication):
+    """
+    Placeholder for a custom authentication class.
+    """
     def authenticate(self, request):
-        # Implement your custom authentication logic here
+        # To be implemented later
         return None
