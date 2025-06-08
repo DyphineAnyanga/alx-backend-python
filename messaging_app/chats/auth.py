@@ -1,9 +1,5 @@
-from rest_framework.authentication import BaseAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
-class CustomAuthentication(BaseAuthentication):
-    """
-    Placeholder for a custom authentication class.
-    """
+class CustomJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
-        # To be implemented later
-        return None
+        return super().authenticate(request)

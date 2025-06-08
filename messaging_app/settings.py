@@ -22,12 +22,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # Third-party apps
+    # Third-party
     'rest_framework',
-    'rest_framework_simplejwt',  # 👈 Required for JWT support
+    'rest_framework_simplejwt',
+    'django_filters',
 
-    # Your local apps
-    'chat',  # Make sure this matches your actual app name
+    # Your apps
+    'chats',  # ✅ This is the app where your custom User model lives
+    'chat',   # Make sure this matches your actual app name
 ]
 
 MIDDLEWARE = [
@@ -90,15 +92,20 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # JWT Authentication Settings
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
+    'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.BasicAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
-    ),
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'chats.pagination.MessagePagination',
+    'PAGE_SIZE': 20,
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
 }
+
+
 
 # JWT Token Lifetimes
 SIMPLE_JWT = {
@@ -108,6 +115,7 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
+AUTH_USER_MODEL = 'chats.User'
 
 # Optional: Use custom user model
 # AUTH_USER_MODEL = 'chat.User'
