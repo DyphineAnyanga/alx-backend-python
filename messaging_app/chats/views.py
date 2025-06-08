@@ -1,66 +1,46 @@
-from rest_framework import viewsets, status, filters
+from rest_framework import generics, permissions
 from rest_framework.response import Response
-from rest_framework.decorators import action
-from .models import Conversation, Message
-from .serializers import ConversationSerializer, MessageSerializer
+from rest_framework.views import APIView
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from .models import Message, Conversation
+from .serializers import MessageSerializer, ConversationSerializer
+from .permissions import IsOwnerOrParticipant
 
-class ConversationViewSet(viewsets.ModelViewSet):
-    queryset = Conversation.objects.all()
-    serializer_class = ConversationSerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['participants__username']  # or any field you want searchable
-
-    def create(self, request, *args, **kwargs):
-        """
-        Override create to handle creating conversations with participants.
-        Expecting a list of user IDs in the request data.
-        """
-        participants = request.data.get('participants', [])
-        if not participants or not isinstance(participants, list):
-            return Response({"error": "Participants list is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Create the conversation with participants
-        conversation = Conversation.objects.create()
-        conversation.participants.set(participants)
-        conversation.save()
-
-        serializer = self.get_serializer(conversation)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-class MessageViewSet(viewsets.ModelViewSet):
+# Apply global authentication and permission
+class MessageListCreateView(generics.ListCreateAPIView):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
-        """
-        Override create to handle sending a message to a conversation.
-        Expect conversation ID and message body in the request.
-        """
-        conversation_id = request.data.get('conversation')
-        message_body = request.data.get('message_body')
-        sender = request.user
+    def get_queryset(self):
+        # Only return messages the user is involved in
+        return Message.objects.filter(sender=self.request.user)
 
-        if not conversation_id or not message_body:
-            return Response({"error": "conversation and message_body are required."},
-                            status=status.HTTP_400_BAD_REQUEST)
+    def perform_create(self, serializer):
+        serializer.save(sender=self.request.user)
 
-        # Verify conversation exists
-        try:
-            conversation = Conversation.objects.get(id=conversation_id)
-        except Conversation.DoesNotExist:
-            return Response({"error": "Conversation not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Optionally check if sender is part of the conversation
-        if sender not in conversation.participants.all():
-            return Response({"error": "You are not a participant in this conversation."},
-                            status=status.HTTP_403_FORBIDDEN)
+class ConversationListCreateView(generics.ListCreateAPIView):
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
 
-        message = Message.objects.create(
-            conversation=conversation,
-            sender=sender,
-            message_body=message_body
-        )
+    def get_queryset(self):
+        return Conversation.objects.filter(participants=self.request.user)
 
-        serializer = self.get_serializer(message)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    def perform_create(self, serializer):
+        conversation = serializer.save()
+        conversation.participants.add(self.request.user)
+
+
+class ConversationDetailView(generics.RetrieveAPIView):
+    queryset = Conversation.objects.all()
+    serializer_class = ConversationSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated, IsOwnerOrParticipant]
+
+    def get_queryset(self):
+        return Conversation.objects.filter(participants=self.request.user)
+
