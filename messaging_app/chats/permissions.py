@@ -11,13 +11,16 @@ class IsOwner(BasePermission):
 
 
 class IsParticipantOfConversation(BasePermission):
+
     """
-    Allows access only to users who are participants of the conversation.
-    Assumes the view has a `get_object()` that returns a Message or Conversation.
+    Allow access only to participants of the conversation.
     """
 
-    def has_permission(self, request, view):
-        return request.user and request.user.is_authenticated
+    def has_object_permission(self, request, view, obj):
+        if request.method in ["PUT", "PATCH", "DELETE", "GET", "POST"]:
+            return request.user in obj.conversation.participants.all()
+        return False
+
 
     def has_object_permission(self, request, view, obj):
         if hasattr(obj, 'participants'):
