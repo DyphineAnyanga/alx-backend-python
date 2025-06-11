@@ -1,33 +1,44 @@
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
 from .models import Message
+from django.contrib.auth.models import User
+
+def get_threaded_replies(message):
+    """
+    Recursively fetch all replies to a given message.
+    """
+    replies = message.replies.select_related('sender', 'receiver').all()
+    all_replies = []
+    for reply in replies:
+        all_replies.append(reply)
+        all_replies.extend(get_threaded_replies(reply))
+    return all_replies
 
 @login_required
-def threaded_conversations(request):
+def conversation_view(request, receiver_id):
     """
-    View to display threaded messages between the logged-in user and others.
-    Messages include replies (parent_message) and are optimized with select_related and prefetch_related.
+    Fetch messages between request.user and receiver, along with threaded replies.
+    Optimized with select_related and prefetch_related.
     """
-    user = request.user
+    receiver = get_object_or_404(User, id=receiver_id)
+
+    # Main messages
     messages = Message.objects.filter(
-        Q(sender=user) | Q(receiver=user),
-        parent_message__isnull=True  # Only top-level messages (not replies)
-    ).select_related('sender', 'receiver', 'parent_message')\
-     .prefetch_related('replies')
+        sender=request.user,
+        receiver=receiver,
+        parent_message=None
+    ).select_related('sender', 'receiver').prefetch_related('replies')
 
-    context = {
-        'messages': messages
-    }
-    return render(request, 'messaging/threaded.html', context)
+    # Append all replies recursively for UI rendering
+    message_threads = []
+    for msg in messages:
+        thread = {
+            'message': msg,
+            'replies': get_threaded_replies(msg)
+        }
+        message_threads.append(thread)
 
-@login_required
-def delete_user(request):
-    """
-    View to allow a user to delete their account.
-    """
-    user = request.user
-    if request.method == "POST":
-        user.delete()
-        return render(request, 'messaging/account_deleted.html')
-    return render(request, 'messaging/confirm_delete.html')
+    return render(request, 'messaging/conversation.html', {
+        'receiver': receiver,
+        'message_threads': message_threads
+    })
