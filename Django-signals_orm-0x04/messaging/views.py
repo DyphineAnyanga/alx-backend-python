@@ -10,67 +10,56 @@ from .forms import MessageForm
 @login_required
 def inbox_view(request):
     """
-    Display only unread messages for the logged-in user.
-    Optimized using `.only()` to retrieve essential fields only.
+    Display unread messages for the logged-in user.
+    Optimized using `.only()` to retrieve only necessary fields.
     """
-    unread_messages = Message.unread.unread_for_user(request.user).only('sender', 'content', 'created_at')
+    unread_messages = Message.unread.unread_for_user(request.user).only('id', 'sender', 'content', 'created_at')
     return render(request, 'messaging/inbox.html', {
         'unread_messages': unread_messages
     })
 
 
+@login_required
+def sent_messages_view(request):
+    """
+    Show messages sent by the logged-in user.
+    Optimized with .only().
+    """
+    sent_messages = Message.objects.filter(sender=request.user).only('id', 'receiver', 'content', 'created_at')
+    return render(request, 'messaging/sent.html', {
+        'sent_messages': sent_messages
+    })
+
 
 @login_required
-def send_message(request, username=None, parent_id=None):
+def send_message_view(request):
     """
-    Send a message to a user. If replying, link to the parent message.
+    Allow the user to send a new message.
     """
-    recipient = get_object_or_404(User, username=username) if username else None
-    parent_message = get_object_or_404(Message, id=parent_id) if parent_id else None
-
     if request.method == 'POST':
         form = MessageForm(request.POST)
         if form.is_valid():
             message = form.save(commit=False)
             message.sender = request.user
-            message.receiver = recipient
-            message.parent_message = parent_message
             message.save()
-            return redirect('inbox')  # Or redirect to message thread
+            return redirect('messaging:sent_messages')
     else:
         form = MessageForm()
-
-    return render(request, 'messaging/send_message.html', {
-        'form': form,
-        'recipient': recipient,
-        'parent_message': parent_message
-    })
+    return render(request, 'messaging/send_message.html', {'form': form})
 
 
 @login_required
-def thread_view(request, message_id):
+def message_detail_view(request, message_id):
     """
-    Display a message and all its recursive replies in a threaded view.
-    Optimized with `select_related` and `prefetch_related`.
+    View message details. Mark the message as read if the user is the receiver.
     """
-    message = get_object_or_404(
-        Message.objects.select_related('sender', 'receiver')
-                       .prefetch_related('replies'),
-        id=message_id
-    )
+    message = get_object_or_404(Message, id=message_id)
 
-    def get_replies(msg):
-        # Recursive function to gather all threaded replies
-        replies = msg.replies.select_related('sender', 'receiver').all()
-        all_replies = []
-        for reply in replies:
-            all_replies.append(reply)
-            all_replies.extend(get_replies(reply))
-        return all_replies
+    # Only mark as read if the logged-in user is the receiver
+    if message.receiver == request.user and not message.read:
+        message.read = True
+        message.save()
 
-    threaded_replies = get_replies(message)
-
-    return render(request, 'messaging/thread.html', {
-        'message': message,
-        'threaded_replies': threaded_replies
+    return render(request, 'messaging/message_detail.html', {
+        'message': message
     })
