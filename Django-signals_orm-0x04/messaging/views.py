@@ -13,10 +13,11 @@ def inbox_view(request):
     Display only unread messages for the logged-in user.
     Optimized using `.only()` to retrieve essential fields only.
     """
-    unread_messages = Message.unread.unread_for_user(request.user)
+    unread_messages = Message.unread.unread_for_user(request.user).only('sender', 'content', 'created_at')
     return render(request, 'messaging/inbox.html', {
         'unread_messages': unread_messages
     })
+
 
 
 @login_required
