@@ -11,12 +11,12 @@ from .forms import MessageForm
 def inbox_view(request):
     """
     Display unread messages for the logged-in user.
-    Uses `Message.objects.filter()` for clarity.
+    Uses `Message.unread.unread_for_user()` for encapsulated logic.
     Optimized with `.select_related()` and `.only()`.
     """
     unread_messages = (
-        Message.objects
-        .filter(receiver=request.user, read=False)
+        Message.unread
+        .unread_for_user(request.user)
         .select_related('sender')
         .only('id', 'sender__username', 'content', 'created_at')
     )
