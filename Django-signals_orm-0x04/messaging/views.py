@@ -11,10 +11,12 @@ from .forms import MessageForm
 def inbox_view(request):
     """
     Display unread messages for the logged-in user.
-    Optimized using `.only()` and `.select_related()` for sender.
+    Uses `Message.objects.filter()` for clarity.
+    Optimized with `.select_related()` and `.only()`.
     """
     unread_messages = (
-        Message.unread.unread_for_user(request.user)
+        Message.objects
+        .filter(receiver=request.user, read=False)
         .select_related('sender')
         .only('id', 'sender__username', 'content', 'created_at')
     )
@@ -27,7 +29,8 @@ def inbox_view(request):
 def sent_messages_view(request):
     """
     Show messages sent by the logged-in user.
-    Optimized using `.only()` and `.select_related()` for receiver.
+    Uses `Message.objects.filter()` explicitly.
+    Optimized with `.select_related()` and `.only()`.
     """
     sent_messages = (
         Message.objects
@@ -60,8 +63,9 @@ def send_message_view(request):
 @login_required
 def message_detail_view(request, message_id):
     """
-    View message details. Mark the message as read if the user is the receiver.
-    Use `.select_related()` to fetch sender and receiver efficiently.
+    View message details.
+    If the logged-in user is the receiver and the message is unread, mark it as read.
+    Optimized with `.select_related()` for sender and receiver.
     """
     message = get_object_or_404(
         Message.objects.select_related('sender', 'receiver'),
