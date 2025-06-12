@@ -7,16 +7,18 @@ from .models import Message
 from .forms import MessageForm
 
 
+@cache_page(60)
 @login_required
 def inbox_view(request):
     """
     Display unread messages for the logged-in user.
-    Uses `Message.unread.unread_for_user()` for encapsulated logic.
+    Uses `Message.objects.filter()` for clarity.
     Optimized with `.select_related()` and `.only()`.
+    Cached for 60 seconds using @cache_page.
     """
     unread_messages = (
-        Message.unread
-        .unread_for_user(request.user)
+        Message.objects
+        .filter(receiver=request.user, read=False)
         .select_related('sender')
         .only('id', 'sender__username', 'content', 'created_at')
     )
@@ -24,12 +26,10 @@ def inbox_view(request):
         'unread_messages': unread_messages
     })
 
-
 @login_required
 def sent_messages_view(request):
     """
     Show messages sent by the logged-in user.
-    Uses `Message.objects.filter()` explicitly.
     Optimized with `.select_related()` and `.only()`.
     """
     sent_messages = (
@@ -41,7 +41,6 @@ def sent_messages_view(request):
     return render(request, 'messaging/sent.html', {
         'sent_messages': sent_messages
     })
-
 
 @login_required
 def send_message_view(request):
@@ -58,7 +57,6 @@ def send_message_view(request):
     else:
         form = MessageForm()
     return render(request, 'messaging/send_message.html', {'form': form})
-
 
 @login_required
 def message_detail_view(request, message_id):
