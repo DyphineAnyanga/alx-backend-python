@@ -11,9 +11,13 @@ from .forms import MessageForm
 def inbox_view(request):
     """
     Display unread messages for the logged-in user.
-    Optimized using `.only()` to retrieve only necessary fields.
+    Optimized using `.only()` and `.select_related()` for sender.
     """
-    unread_messages = Message.unread.unread_for_user(request.user).only('id', 'sender', 'content', 'created_at')
+    unread_messages = (
+        Message.unread.unread_for_user(request.user)
+        .select_related('sender')
+        .only('id', 'sender__username', 'content', 'created_at')
+    )
     return render(request, 'messaging/inbox.html', {
         'unread_messages': unread_messages
     })
@@ -23,9 +27,14 @@ def inbox_view(request):
 def sent_messages_view(request):
     """
     Show messages sent by the logged-in user.
-    Optimized with .only().
+    Optimized using `.only()` and `.select_related()` for receiver.
     """
-    sent_messages = Message.objects.filter(sender=request.user).only('id', 'receiver', 'content', 'created_at')
+    sent_messages = (
+        Message.objects
+        .filter(sender=request.user)
+        .select_related('receiver')
+        .only('id', 'receiver__username', 'content', 'created_at')
+    )
     return render(request, 'messaging/sent.html', {
         'sent_messages': sent_messages
     })
@@ -52,10 +61,13 @@ def send_message_view(request):
 def message_detail_view(request, message_id):
     """
     View message details. Mark the message as read if the user is the receiver.
+    Use `.select_related()` to fetch sender and receiver efficiently.
     """
-    message = get_object_or_404(Message, id=message_id)
+    message = get_object_or_404(
+        Message.objects.select_related('sender', 'receiver'),
+        id=message_id
+    )
 
-    # Only mark as read if the logged-in user is the receiver
     if message.receiver == request.user and not message.read:
         message.read = True
         message.save()
