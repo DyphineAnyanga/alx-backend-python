@@ -4,22 +4,22 @@ metadata:
   name: messaging-blue
   labels:
     app: messaging
-   version: blue
+    version: blue
 spec:
   replicas: 2
   selector:
     matchLabels:
       app: messaging
-     version: blue
+      version: blue
   template:
     metadata:
       labels:
         app: messaging
-       version: blue
+        version: blue
     spec:
       containers:
-      - name: django-messaging-app
-        image: your-dockerhub-username/django-messaging-app:blue
+      - name: messaging-app
+        image: dyphineanyanga/messaging-app:2.0
         ports:
         - containerPort: 8000
         env:
