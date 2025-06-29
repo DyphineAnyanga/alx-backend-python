@@ -1,0 +1,23 @@
+#!/bin/bash
+
+# Script: kubctl-0x01
+# Purpose: Scale Django app to 3 replicas, verify pods, load test using wrk, and monitor resources.
+
+# Exit on errors
+set -e
+
+echo "📦 Scaling Django app to 3 replicas..."
+kubectl scale deployment messaging-app --replicas=3
+
+echo "⏳ Waiting for pods to be ready..."
+sleep 5
+
+echo "📋 Current Pods:"
+kubectl get pods -l app=messaging
+
+echo "🔥 Load testing with wrk (ensure wrk is installed)..."
+# This assumes your Django service is exposed via NodePort or port-forwarding
+wrk http://localhost:8000 -d10s -c10 -t2
+
+echo "📊 Resource usage (kubectl top)..."
+kubectl top pods
